@@ -1,0 +1,20 @@
+{
+    "name": "faz-b/configuration-silex-provider",
+    "description": "A Simple configuration service provider for Silex",
+    "type": "library",
+    "keywords": ["silex", "configuration", "php"],
+    "require": {
+        "php": ">=5.3.0",
+        "silex/silex": "~1.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "email": "eric@faz-b.com",
+            "homepage": "http://www.faz-b.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {"Fazb\\Silex\\": "src"}
+    }    
+}
