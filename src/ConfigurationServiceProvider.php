@@ -11,7 +11,7 @@ class ConfigurationServiceProvider implements ServiceProviderInterface
     public function register(Application $app)
     {
         $app['config'] = $app->share(function ($app) {
-            $configuration = new Configuration($app, $app['site.config']);
+            $configuration = new Configuration($app['site.config']);
 
             return $configuration;
         });
