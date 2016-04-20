@@ -15,6 +15,6 @@
         }
     ],
     "autoload": {
-        "psr-4": {"Fazb\\Silex\\": "src"}
+        "psr-4": {"Fazb\\Silex\\Configuration\\": "src"}
     }    
 }
