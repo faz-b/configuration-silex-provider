@@ -1,171 +1,193 @@
 # Simple configuration for Silex App
 
-This approach assume that you will use **Twig** as the template engine, and that you will use the __ServicerouteServiceProvider__ to build your routes. It is designed for simple use case, where writing and maintaining routes, views code can be cumbersome. Do not use at home.
+_Rapid routing, view and global parameters definition through a human readable structured config file._
 
-## Example of a configuration using a .json file
+Once you choose your preferred parsable data format, register the **ConfigurationServiceProvider**.
 
-    {
-        "global": {
-            "title": "Acme Site - "
-        },
-        "settings": {
-            "homepage": {
-                "route": {
-                    "controller" : "page.route:indexAction",
-                    "pattern": "/",
-                    "method" : "GET"
-                },
-                "view": {
-                    "title": "Homepage",
-                    "metas": {
-                        "keywords": "keyword, keyword, keyword",
-                        "description": "some seo description..."
-                    }
-                }
-            },
-            "contact":
-    ...
-    }
+    # src/app.php
 
-## Or with a yaml file :
+    # $configuration = json_decode(file_get_contents(__DIR__ . '/Site/Resource/config/config.json'), true);
+    $configuration = Yaml::parse(file_get_contents(__DIR__ . '/Site/Resources/config/config.yml'));
+    $app->register(new ConfigurationServiceProvider(), array('site.config' => $configuration));
 
-    global:
-        title: 'Acme Site - '
+## The ```settings``` key
+
+Allows to define your routes and view variables. The first key, under the ```settings``` key is your route name. All routes defined here are registered with the ```Silex\ControllerCollection```.
+
+    # src/Site/Resources/config/config.yml
 
     settings:
         homepage:
             route:
-                controller: page.controller:indexAction
-                pattern: "/"
+                controller:     default.controller:indexAction
+                pattern:        /
+                # other Silex route parameters...
             view:
-                title:      "Homepage"
+                title:          homepage.title
                 metas:
-                    keywords: "keyword, keyword, keyword"
+                    keywords:  "keyword, keyword, keyword"
         contact:
             route:
-                pattern:    "/contact"
+                pattern:        /contact
+                method:         GET|POST
             view:
-                template:   "page/contact.html"
-                title:      "Contact"
+                template:       page/contact.html
+                title:          contact.title
 
 
-This configuration allows to setup a few common and redundant things that happens in a silex workflow app. It gives you a central point to configure the different layers of your application (route, view, global).
+When no controller is given (eg: contact route), a default closure will be generated, returning the given template.
 
-Moreover, it gives you a simple way to access config var within a twig template using the ```get``` method as it extends the _ParameterBag_ class. As an extra cherry, it uses the dot notation to access sub tree array, which can be more convenient than the square bracket notation.
+The configuration can be accessed in your twig template through the following syntax :
 
+    <h1>{{ app.config.get('homepage.view.title')|trans }}</h1>
 
-    <h1>{{ app.config.get('current.view.title') }}</h1>
+As a convenience, you can use the ```current``` shortcut to access the settings for the current matched route
 
+    <h1>{{ app.config.current('view.title')|trans }}</h1>
 
-The **current** keyword is replaced by the current matched route name internally, each time it is met during the parsing process.
+    {# equivalent #}
 
-The default main key is **settings** if none provided.
+    <h1>{{ app.config.settings('homepage.view.title')|trans }}</h1>
 
-## Conventions
+The same applies inside a controller
 
-### Root entry keys and tree access
+    public function indexAction(Request $request)
+    {
+        $title = $this->container['config']->current('view.title', 'Default title');
 
-* global
-* settings
+        return $this->container['twig']->render('@site/Default/index.html');
+    }
 
-You can create any other root key you may want. The _settings_ keyword is a reserved key. _global_ is given as an extra entry to store any other settings you want.
+## The ```global``` key
 
-You can also use shortcuts methods like
+It is just a convention for settings your others application parameters.
 
-    {{ app.config.current('view.title') }}
+    # src/Site/Resources/config/config.yml
+    global:
+        email:                  contact@localhost
+        domain:                 localhost
+        brand:                  brandname
+        analytics_id:           UA-xxxxx
+        facebook_url:           https://www.facebook.com/xxx
+        linkedin_url:           https://www.linkedin.com/pub/xxx
+        view:
+            title:              " - default title suffix"
+            metas:
+                description:    "Silex app"
 
-Which will default to settings.current.view.title
+In a twig template:
 
-Or use any root key as a calling method
+    # index.html
 
-    {{ app.config.global('title') }}
+    <title>{% block title %}{{ app.config.current('view.title') }}{% endblock %}{{ app.config.global('view.title')}}</title>
 
+    ...
 
-#### The "global" key and its _sub-sections_
-
-Defines any global variable at will
-
-eg:
-
-* global
-
-    * title
-
-
-```<title>{% block title %}{{ app.config.global('title') }}{% endblock %}</title>```
-
-#### The "settings" key and its _sub-sections_
-
-The _route_ section allows you to map route definition to a specific controller, or having it be automatically generated.
-
-* route_name
-
-    * route:
-        * controller:        (xxx.controller:indexAction)
-        * pattern:       (pattern to match)
-        * method:        (http methods)
-
-    * view:
-        * template:      (path to twig template, overrided by route.controller key if defined)
-        * title:
-        * metas:
-            * keywords:
-            * description:
+    <a href="mailto:{{ app.config.global('email') }}">email me</a>
 
 
-For simple static page, a common use case would be to define the view.template value,
-which will automatically generate a simple closure route that will return the result of the twig render call.
+*the __settings__ and __global__ keys are reserved*
 
 
-#### The "Navigation" key exemple and its _sub-sections_
+## A ```navigation``` section example
 
-* navigation
-    * route_name
-        * label
-        * href (if none defined the route_name is used using the {{ path() }} helper)
-        * childs
+    settings:
+    ...
 
-eg:
+    navigation:
+        homepage:
+            label:              homepage.label
+            childs:
+                contact:
+                    label:      contact.label
+
+
+In a twig template:
 
     {{ app.config.navigation('current.label') }}
 
-You can freely structure as you mind.
+### Typical usecase using the bootstrap framework
 
-## Internals
+    {% import "@site/macro/navigation.html" as macros %}
 
-This is your responsability to pass a configuration tree array to the _SiteConfigurationServiceProvider_.
+    <div id="navigation" class="navbar navbar-default navbar-fixed-top navbar-inverse shadow-bottom" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="{{ path('homepage') }}" class="navbar-brand" title="{{ app.config.global('brand')|trans }}">
+            <span class="icon-logo"></span>
+            <span class="suffix">{{ app.config.global('brand')|trans }}</span>
+          </a>
+        </div>
+        <div id="scrollspy" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            {{ macros.menu(app.config.navigation('homepage.childs')) }}
+          </ul>
+          {% if app.locales %}
+          <ul class="nav navbar-nav navbar-right">
+            {% for locale in app.locales %}
+            <li{% if app.request.get('_locale') == locale %} class="active"{% endif %}>
+              <a hreflang="{{locale}}" href="{{path(app.request.get('_route'), {_locale: locale})}}">{{locale|upper}}</a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
 
-    $configuration = json_decode(file_get_contents(__DIR__ . '/Site/Resource/config/config.json'), true);
-    $app->register(new SiteConfigurationServiceProvider(), array('site.config' => $configuration));
-
-Using plain php object with the _ServicerouteServiceProvider_
-
-    class Pageroute
-    {
-        protected $container;
-
-        public function __construct(Application $container)
-        {
-            $this->container = $container;
-        }
-
-        /**
-         * @return Response
-         */
-        public function indexAction()
-        {
-            return $this->container['twig']->render('@site/page/index.html');
-        }
-    }
+        </div>
+      </div>
+    </div>
 
 
-## TODO
+## Full config.yml example
 
-* Finish the tree variables definition
-* Enforce config file definition by using sf2 treebuilder
-* Tests
+    global:
+        email:                  contact@localhost
+        domain:                 localhost
+        brand:                  brand.name
+        analytics_id:           UA-xxxxx
+        facebook_url:           https://www.facebook.com/xxx
+        linkedin_url:           https://www.linkedin.com/pub/xxx
+        view:
+            title:              view.title
+            suffix:             view.title.suffix
+            metas:
+                description:    view.metas.description
+    settings:
+        homepage:
+            route:
+                controller: default.controller:indexAction
+                pattern:    /
+            view:
+                title:      home.title
+                metas:
+                    keywords:    ~
+                    description: ~
+        contact:
+            route:
+                controller: default.controller:contactAction
+                pattern:    /contact
+            view:
+                title:      contact.title
+        test:
+            route:
+                pattern:    /test
+                i18n:       false
+            view:
+                template:   '@site/Default/test.html'
+
+    navigation:
+        homepage:
+            label:          home.label
+            childs:
+                contact:
+                    label:  contact.label
+                test:
+                    label:  test.label
 
 ---
 
-inspired by the silex-skeleton repository by Fabien Potencier
-
+F/\Z-B 2014
