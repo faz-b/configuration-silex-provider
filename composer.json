@@ -5,7 +5,7 @@
     "keywords": ["silex", "configuration", "php"],
     "require": {
         "php": ">=5.3.0",
-        "silex/silex": "~1.0"
+        "silex/silex": "~2.0"
     },
     "license": "MIT",
     "authors": [
