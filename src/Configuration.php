@@ -2,7 +2,7 @@
 
 namespace Fazb\Silex\Configuration;
 
-use Symfony\Component\HttpFoundation\ParameterBag;
+use Fazb\Silex\Configuration\ParameterBag;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\KernelEvents;

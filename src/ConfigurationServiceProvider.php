@@ -3,21 +3,29 @@
 namespace Fazb\Silex\Configuration;
 
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
+use Silex\Api\BootableProviderInterface;
+use Pimple\Container;
 use Fazb\Silex\Configuration\Configuration;
 
-class ConfigurationServiceProvider implements ServiceProviderInterface
+class ConfigurationServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['config'] = $app->share(function ($app) {
+        $app['config'] = function ($app) {
             $configuration = new Configuration($app['site.config']);
 
             return $configuration;
+        };
+
+        $app['twig'] = $app->extend('twig', function ($twig, $app) {
+            $twig->addGlobal('config', $app['config']);
+
+            return $twig;
         });
     }
 
-    protected function registerControllers(Application $app)
+    protected function registerControllers(Container $app)
     {
         $settings = $app['config']->get('settings');
         foreach ($settings as $route => $params) {
